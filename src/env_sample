@@ -1,0 +1,4 @@
+# rename this file to .env and set up configuration parameters
+
+VK_ID=your-vk-id
+VK_PASSWORD=your-vk-password
