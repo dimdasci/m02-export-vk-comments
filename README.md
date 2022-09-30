@@ -29,9 +29,10 @@ Export posts for the last 7 days containing 'как ваше самочувст�
     make run ARGS="87598739 -d 7 -f 'как ваше самочувствие'"
 
 Exports all posts for a last 24 hours
+
     make run ARGS=87598739
 
-Get help on running
+Get help on running the script
 
     make run
 
