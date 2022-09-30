@@ -130,3 +130,6 @@ dmypy.json
 
 # VK API
 vk_config.v2.json
+
+# VS CODE
+.vscode
