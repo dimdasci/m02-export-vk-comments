@@ -40,7 +40,7 @@ def export_posts(
         + f"till {export_term_end_time}."
     )
 
-    response = vk.wall.get(owner_id=-club_id, count=30, filter="owner")
+    response = vk.wall.get(owner_id=-club_id, count=100, filter="owner")
 
     posts = {"id": [], "url": [], "datetime": [], "text": [], "comments_number": []}
     queue = []
@@ -65,20 +65,54 @@ def export_posts(
             queue.append((item["id"], item["comments"]["count"]))
             exported_posts_count += 1
 
-    print(f"Exported {exported_posts_count} posts")
+    print(f"{exported_posts_count} posts have been exported")
     return posts, queue
 
 
 def export_comments(
-    vk: vk_api.VkApi, club_id: int, post_id: int, number: int, tz: timezone
+    vk: vk_api.VkApi,
+    club_id: int,
+    post_id: int,
+    number: int,
+    tz: timezone,
 ) -> list:
     """Exports number of comments to post_id of club_id club
 
     Returns list of comments
     """
-    print(f"Export {number} comments for {post_id} post")
+    print(f"Looking for {number} comments of {post_id} post")
 
-    comments = []
+    comments = {
+        "id": [],
+        "post_id": [],
+        "url": [],
+        "datetime": [],
+        "text": [],
+        "thread_number": [],
+        "likes_number": [],
+    }
+
+    response = vk.wall.getComments(
+        owner_id=-club_id, post_id=post_id, count=max(100, number), need_likes=1
+    )
+    print(f"Exported {len(response['items'])} items for {response['count']} comments")
+
+    for item in response["items"]:
+        comments["id"].append(item["id"])
+        comments["post_id"].append(post_id)
+        comments["url"].append(
+            f"https://vk.com/wall-{club_id}_{post_id}?reply={item['id']}"
+        )
+        comments["datetime"].append(
+            datetime.datetime.fromtimestamp(item["date"], tz=tz)
+        )
+        comments["text"].append(REMOVE_LINEBREAKS.sub(" ", item["text"]))
+        comments["likes_number"].append(item["likes"]["count"])
+        thread_number = 0
+        if "thread" in item:
+            thread_number = item["thread"]["count"]
+        comments["thread_number"].append(thread_number)
+
     return comments
 
 
@@ -115,14 +149,23 @@ def get_comments(club_id: int, depth: int, filter: str) -> None:
     posts_df = pandas.DataFrame(posts)
     posts_df.to_csv("data/posts.csv", index=False)
 
-    comments = []
+    comments_df = None
     for item in queue:
-        comments = comments + export_comments(
-            vk, club_id=club_id, post_id=item[0], number=item[1], tz=TIMEZONE
+        post_comments = pandas.DataFrame(
+            export_comments(
+                vk, club_id=club_id, post_id=item[0], number=item[1], tz=TIMEZONE
+            )
         )
 
-    print(club_id, depth, filter)
-    print(f"id {VK_ID}, passw {VK_PASSWORD}, timezone {TIMEZONE}, {vk}")
+        if comments_df is None:
+            comments_df = post_comments.copy()
+        else:
+            comments_df = pandas.concat([comments_df, post_comments])
+
+    if comments_df is not None:
+        comments_df.to_csv("data/comments.csv")
+
+    print(f"Exported {comments_df.shape[0]} comments total")
 
 
 if __name__ == "__main__":
