@@ -15,5 +15,5 @@ build:
 run:
 	docker run \
 		--name ${container_name} \
-		--mount type=bind,source="${data_directory}",target=/home/dim/data \
+		--mount type=bind,source="${data_directory}",target=/home/dim/work/data \
 		-it --rm ${image_name}:${image_tag} $(ARGS)
