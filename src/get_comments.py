@@ -1,4 +1,3 @@
-from turtle import pos
 import vk_api
 import json
 import click
