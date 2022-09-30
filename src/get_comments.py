@@ -1,5 +1,4 @@
 import vk_api
-import json
 import click
 import datetime
 from pytz import timezone
