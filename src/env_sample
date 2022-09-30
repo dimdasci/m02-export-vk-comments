@@ -2,3 +2,4 @@
 
 VK_ID=your-vk-id
 VK_PASSWORD=your-vk-password
+TIMEZONE="UTC"
