@@ -1,7 +1,7 @@
 ARGS=--help
 
 data_directory = "${CURDIR}/data"
-image_tag = "1.0.0"
+image_tag = "1.0.2"
 image_name = "vk_comments_export"
 container_name = "vk_comments_export"
 

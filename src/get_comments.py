@@ -3,11 +3,11 @@ import vk_api
 import click
 import datetime
 from pytz import timezone
-import pandas
 import re
 from dotenv import load_dotenv
 import os
 import logging
+import csv
 
 REMOVE_LINEBREAKS = re.compile("[\n\r]+")
 
@@ -48,6 +48,15 @@ def setup_logging(logfile: str = "log.txt", loglevel: str = "DEBUG") -> None:
     logger.addHandler(fh)
     logger.addHandler(ch)
 
+def save_to_csv(data: list, column_names: list, file_path: str) -> None:
+    try:
+        with open(file_path, "w") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(column_names)
+            for row in data:
+                writer.writerow(row)
+    except Exception as e:
+        logging.error(f"Can't save data to {file_path}", e)
 
 def export_posts(
     vk: vk_api.VkApi, club_id: int, depth: int, tz: timezone, filter: str = ""
@@ -70,12 +79,12 @@ def export_posts(
         + f"{export_term_end_time}."
     )
 
-    posts = {"id": [], "url": [], "datetime": [], "text": [], "comments_number": []}
+    posts = []
+    queue = []
 
     try:
         response = vk.wall.get(owner_id=-club_id, count=100, filter="owner")
 
-        queue = []
         exported_posts_count = 0
         for item in response["items"]:
             if filter and filter not in item["text"]:
@@ -84,15 +93,13 @@ def export_posts(
                 logging.info(f"All posts up to {export_term_end_time} has been exported")
                 break
             else:
-                posts["id"].append(item["id"])
-                posts["url"].append(
-                    f"https://vk.com/club{club_id}?w=wall-{club_id}_{item['id']}"
-                )
-                posts["datetime"].append(
-                    datetime.datetime.fromtimestamp(item["date"], tz=tz)
-                )
-                posts["text"].append(REMOVE_LINEBREAKS.sub(" ", item["text"]))
-                posts["comments_number"].append(item["comments"]["count"])
+                posts.append([
+                    item["id"],
+                    f"https://vk.com/club{club_id}?w=wall-{club_id}_{item['id']}",
+                    datetime.datetime.fromtimestamp(item["date"], tz=tz),
+                    REMOVE_LINEBREAKS.sub(" ", item["text"]),
+                    item["comments"]["count"]
+                ])
 
                 queue.append((item["id"], item["comments"]["count"]))
                 exported_posts_count += 1
@@ -116,28 +123,18 @@ def export_comments(
     """
     logging.info(f"Looking for {number} comments of {post_id} post")
 
-    comments = {
-        "id": [],
-        "post_id": [],
-        "url": [],
-        "datetime": [],
-        "text": [],
-        "parent_comment_id": [],
-        "likes_number": [],
-    }
+    comments = []
 
     def append_comment(item, parent_comment_id=0):
-        comments["id"].append(item["id"])
-        comments["post_id"].append(post_id)
-        comments["url"].append(
-            f"https://vk.com/wall-{club_id}_{post_id}?reply={parent_comment_id if parent_comment_id else item['id']}"
-        )
-        comments["datetime"].append(
-            datetime.datetime.fromtimestamp(item["date"], tz=tz)
-        )
-        comments["text"].append(REMOVE_LINEBREAKS.sub(" ", item["text"]))
-        comments["likes_number"].append(item["likes"]["count"])
-        comments["parent_comment_id"].append(parent_comment_id)
+        comments.append([
+            item["id"],
+            post_id,
+            f"https://vk.com/wall-{club_id}_{post_id}?reply={parent_comment_id if parent_comment_id else item['id']}",
+            datetime.datetime.fromtimestamp(item["date"], tz=tz),
+            REMOVE_LINEBREAKS.sub(" ", item["text"]),
+            item["likes"]["count"],
+            parent_comment_id
+        ])
 
     try:
         response = vk.wall.getComments(
@@ -145,16 +142,16 @@ def export_comments(
             thread_items_count=10
         ) 
 
-        logging.info(
-            f"Exported {len(response['items'])} items for {response['count']} comments"
-        )
-
         for item in response["items"]:
             append_comment(item)
             
             if "thread" in item and item["thread"]["count"]:
                 for thread_item in item['thread']['items']:
                     append_comment(thread_item, parent_comment_id=item["id"])
+
+        logging.info(
+            f"Exported {len(comments)} of {response['count']} comments"
+        )
     except Exception as e:
         logging.error("Got an error during comments export ", e)
 
@@ -197,26 +194,23 @@ def get_comments(club_id: int, depth: int, filter: str) -> None:
         logging.info("No comments to export")
         return
 
-    posts_df = pandas.DataFrame(posts)
-    posts_df.to_csv("data/posts.csv", index=False)
+    save_to_csv(data=posts, 
+        column_names=["id", "url", "datetime", "text", "comments_number"],  
+        file_path="data/posts.csv"
+    )
 
-    comments_df = None
+    comments_data = []
     for item in queue:
-        post_comments = pandas.DataFrame(
-            export_comments(
-                vk, club_id=club_id, post_id=item[0], number=item[1], tz=TIMEZONE
-            )
+        comments_data.extend(
+            export_comments(vk, club_id=club_id, post_id=item[0], number=item[1], tz=TIMEZONE)
         )
 
-        if comments_df is None:
-            comments_df = post_comments.copy()
-        else:
-            comments_df = pandas.concat([comments_df, post_comments])
+    if len(comments_data) > 0:
+        save_to_csv(data=comments_data, 
+                    column_names=["id", "post_id", "url", "datetime", "text", "likes_number", "parent_comment_id"], 
+                    file_path="data/comments.csv")
 
-    if comments_df is not None:
-        comments_df.to_csv("data/comments.csv")
-
-    logging.info(f"Exported {comments_df.shape[0]} comments total")
+    logging.info(f"Exported {len(comments_data)} comments total")
 
 
 if __name__ == "__main__":

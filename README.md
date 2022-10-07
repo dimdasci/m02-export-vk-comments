@@ -39,10 +39,3 @@ Get help on running the script
     make run
 
 
-## TO DO
-
-- Export threaded comments
-- Manage posts and comments number greater then 100
-- Add timestamp to data file names
-- Use Logger to report
-- Write tests 
