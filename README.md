@@ -9,6 +9,8 @@ Clone the repository and go the directory.
 
     cd m02-export-vk-comments
 
+Copy `src/env_sample` file to `src/.env` and set up your credentials and Timezone.
+
 Run `build` command to build docker image.
 
     make build
