@@ -1,5 +1,5 @@
 # rename this file to .env and set up configuration parameters
 
-VK_ID=your-vk-id
+VK_ID=your-vk-id_example_+79013002050
 VK_PASSWORD=your-vk-password
 TIMEZONE="UTC"
