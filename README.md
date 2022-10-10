@@ -20,9 +20,9 @@ Run `build` command to build docker image.
 Use `run` command with arguments to export posts and comments. The data exported will be saved at `data` directory.
 
 Arguments:
-- CLUB_ID — id of a VK club to export from.
-- d — a number of days from now to export posts, by default is 1.
-- f — a filter as a string. If given only posts containing that string will be exported.
+- `CLUB_ID` — id of a VK club (cell phone number) to export from.
+- `-d` — a number of days from now to export posts, by default is 1.
+- `-f` — a filter as a string. If given only posts containing that string will be exported.
 
 ### Examples of running
 
